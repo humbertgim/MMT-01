@@ -15,6 +15,7 @@
 
 #include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
 #include <SPI.h>
+#include <QuadratureEncoder.h>
 
 TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
 
@@ -31,7 +32,7 @@ uint32_t runing = 0;
 
 
 int unit = CM;
-int CPR = 600;
+int CPR = 2400;
 float pi = 3.14159;
 float radius = 25;
 float perimeter = 2*pi*radius;
@@ -41,48 +42,39 @@ int precision = 3;  // Number of digits after decimal point
 
 int iCountPulses = 0;
 
-#define Encoder_output_A 12 // pin 12 of the Arduino
-#define Encoder_output_B 13 // pin 14 of the Arduino
+
+
+#define Encoder_output_A 13 // pin 12 of the Arduino
+#define Encoder_output_B 12 // pin 14 of the Arduino
 #define BUTTON_PIN_RST 0
 #define BUTTON_PIN_OK 14
 
+Encoders theEncoder;
 
-void ICACHE_RAM_ATTR DC_Motor_Encoder(){
-  int b = digitalRead(Encoder_output_B);
-  if(b > 0){
-    iCountPulses++;
-  }
-  else{
-    iCountPulses--;
-  }
-
-}
 
 void setup(void)
 {
-    Serial.begin(115200);
-    
-    pinMode(15, OUTPUT);
-    digitalWrite(15, HIGH);
+  Serial.begin(115200);
+  
+  pinMode(15, OUTPUT);
+  digitalWrite(15, HIGH);
 
-    tft.init();
-    tft.setRotation(3);
-    tft.fillScreen(TFT_BLACK);
+  tft.init();
+  tft.setRotation(3);
+  tft.fillScreen(TFT_BLACK);
 
-    pinMode(Encoder_output_A,INPUT_PULLUP); // sets the Encoder_output_A pin as the input
-    pinMode(Encoder_output_B,INPUT_PULLUP); // sets the Encoder_output_B pin as the input
 
-    perimeter = 2*pi*(radius/unit);
-    switch (unit) {
-          case MM:
-            precision = 0;
-            break;
-          case CM:
-            precision = 1;
-            break;
-        }
-    attachInterrupt(digitalPinToInterrupt(Encoder_output_A),DC_Motor_Encoder,RISING);
+  perimeter = 2*pi*(radius/unit);
+  switch (unit) {
+        case MM:
+          precision = 1;
+          break;
+        case CM:
+          precision = 2;
+          break;
+  }
 
+  theEncoder.setup(Encoder_output_A, Encoder_output_B);
 
 }
 
@@ -94,7 +86,8 @@ void loop()
         targetTime = millis() + 100;
 
         if (!digitalRead(BUTTON_PIN_RST)){
-          iCountPulses = 0;
+          //iCountPulses = 0;
+          theEncoder.setEncoderCount(0);
           tft.setTextColor(TFT_WHITE, TFT_BLACK, true);
           tft.drawRoundRect(0, 0, 70, 85, 5, TFT_RED);
           tft.drawString("RST",10,30,4);
@@ -108,7 +101,7 @@ void loop()
 
         float fValue = 0.0;
         int xpos = 80;
-        fValue = iCountPulses * (perimeter / CPR);
+        fValue = theEncoder.getEncoderCount() * (perimeter / CPR);
         xpos += tft.drawFloat(fValue, precision, xpos, 54, 6);
         tft.drawString("                ", xpos, 54, 6);
         String s = "";
