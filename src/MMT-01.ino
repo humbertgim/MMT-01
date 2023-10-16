@@ -16,6 +16,7 @@
 #include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
 #include <SPI.h>
 #include <QuadratureEncoder.h>
+#include <EEPROM.h>
 
 TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
 
@@ -64,7 +65,7 @@ Encoders theEncoder;
 void setup(void)
 {
   Serial.begin(115200);
-  
+  EEPROM.begin(8);
   pinMode(15, OUTPUT);
   digitalWrite(15, HIGH);
 
@@ -83,17 +84,14 @@ void setup(void)
           break;
         
   }
-
+  fBladeOffset = EEPROM.readFloat(0);
   theEncoder.setup(Encoder_output_B, Encoder_output_A);
 
 }
 
 void loop()
 {
-
-    //TODO: we need to account for the blade offset
-    //TODO: We need to show 
-    
+    //We should or could include the OTA update
     
     if (targetTime < millis()) {
         targetTime = millis() + 100;
@@ -109,7 +107,7 @@ void loop()
         }
         //Get the encoder value at the very beginning
         float fValue = 0.0;
-        int xpos = 80;
+        
         
         fValue = theEncoder.getEncoderCount() * (perimeter / CPR);
 
@@ -132,7 +130,7 @@ void loop()
           if(isBOKReleased){ //Only do it once
             isBOKReleased = false;
             tPushOK = millis();
-              if(iState == STATE_NORMAL){
+              if(iState == STATE_NORMAL){ //The behavior of the button changes depending on the state we are in
                 isBladeOffsetNeeded = !isBladeOffsetNeeded;
                 if(isBladeOffsetNeeded){
                   tft.drawString(" Blade offset activated: " + String(fBladeOffset) + sUnits,80,150,2);
@@ -144,6 +142,8 @@ void loop()
                 iState = STATE_NORMAL;
                 tft.drawString(" Blade offset activated: " + String(fBladeOffset) + sUnits,80,150,2);
                 isBladeOffsetNeeded = true;
+                EEPROM.writeFloat(0,fBladeOffset); //Persist the value in EEPROM
+                EEPROM.commit(); //Commit the change!!
               }
           }
           
@@ -193,6 +193,7 @@ void loop()
             fValue = fValue - fBladeOffset;
           }
         }
+        int xpos = 80;
         xpos += tft.drawFloat(fValue, precision, xpos, 54, 6);
         tft.drawString("                ", xpos, 54, 6);
         
